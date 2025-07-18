@@ -1,0 +1,359 @@
+{% comment %}
+  Shopify Product Page with Liquid Templating
+  This template uses Shopify's Liquid syntax for dynamic content
+{% endcomment %}
+
+<div class="product-page" data-product-id="{{ product.id }}">
+  <!-- Product Media Gallery -->
+  <div class="product-media">
+    <div class="main-image">
+      {% if product.featured_media %}
+        <img id="mainImage" 
+             src="{{ product.featured_media | img_url: '600x600' }}" 
+             alt="{{ product.featured_media.alt | default: product.title }}" 
+             loading="lazy">
+      {% else %}
+        <img id="mainImage" 
+             src="{{ 'placeholder-image.jpg' | asset_url }}" 
+             alt="{{ product.title }}" 
+             loading="lazy">
+      {% endif %}
+    </div>
+    
+    <div class="thumbnail-gallery">
+      {% for media in product.media limit: 4 %}
+        <img class="thumbnail {% if forloop.first %}active{% endif %}" 
+             src="{{ media | img_url: '100x100' }}" 
+             alt="{{ media.alt | default: product.title }}" 
+             onclick="changeMainImage(this)"
+             data-full-src="{{ media | img_url: '600x600' }}">
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Product Details -->
+  <div class="product-details">
+    <h1 class="product-title">{{ product.title }}</h1>
+    
+    <!-- Product Rating -->
+    <div class="product-rating">
+      <div class="stars">
+        {% assign rating = product.metafields.reviews.rating | default: 4.2 %}
+        {% assign full_stars = rating | floor %}
+        {% for i in (1..5) %}
+          {% if i <= full_stars %}
+            <span class="star filled">★</span>
+          {% else %}
+            <span class="star">★</span>
+          {% endif %}
+        {% endfor %}
+      </div>
+      <span class="rating-text">
+        ({{ rating }} out of 5 based on {{ product.metafields.reviews.count | default: 156 }} reviews)
+      </span>
+    </div>
+
+    <!-- Dynamic Pricing -->
+    <div class="product-pricing">
+      <div class="price-container">
+        <span class="current-price" id="currentPrice">
+          {{ product.price | money }}
+        </span>
+        {% if product.compare_at_price > product.price %}
+          <span class="original-price" id="originalPrice">
+            {{ product.compare_at_price | money }}
+          </span>
+          {% assign discount = product.compare_at_price | minus: product.price %}
+          {% assign discount_percent = discount | times: 100 | divided_by: product.compare_at_price | round %}
+          <span class="discount-badge">{{ discount_percent }}% OFF</span>
+        {% endif %}
+      </div>
+      
+      <!-- Subscription Pricing -->
+      {% assign subscription_price = product.price | times: 0.8 %}
+      <div class="subscription-pricing" id="subscriptionPricing">
+        <p>Subscribe & Save: <span class="subscription-price">{{ subscription_price | money }}</span> (20% off)</p>
+      </div>
+    </div>
+
+    <!-- Product Description -->
+    <div class="product-description">
+      {{ product.description | truncate: 200 }}
+    </div>
+
+    <!-- Product Form -->
+    <form action="/cart/add" method="post" enctype="multipart/form-data" id="product-form">
+      
+      <!-- Purchase Options -->
+      <div class="purchase-options">
+        <h3>Purchase Options</h3>
+        <div class="radio-group">
+          <label class="radio-option">
+            <input type="radio" name="purchaseType" value="one-time" checked onchange="updatePurchaseOption()">
+            <span class="radio-custom"></span>
+            One-time Purchase - {{ product.price | money }}
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="purchaseType" value="subscription" onchange="updatePurchaseOption()">
+            <span class="radio-custom"></span>
+            Subscribe & Save - {{ subscription_price | money }} (20% off)
+          </label>
+        </div>
+      </div>
+
+      <!-- Variant Selection (Flavors) -->
+      {% unless product.has_only_default_variant %}
+        <div class="flavor-selection">
+          <h3>{{ product.options.first }}</h3>
+          <div class="flavor-options">
+            {% for variant in product.variants %}
+              {% if variant.available %}
+                <button type="button" 
+                        class="flavor-btn {% if forloop.first %}active{% endif %}" 
+                        data-variant-id="{{ variant.id }}"
+                        data-price="{{ variant.price | money }}"
+                        onclick="selectVariant(this)">
+                  <span class="flavor-name">{{ variant.title }}</span>
+                </button>
+              {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+      {% endunless %}
+
+      <!-- Subscription Frequency -->
+      <div class="subscription-frequency" id="subscriptionFrequency" style="display: none;">
+        <h3>Delivery Frequency</h3>
+        <select name="properties[Delivery Frequency]" id="frequencySelect">
+          <option value="weekly">Weekly</option>
+          <option value="biweekly">Bi-weekly</option>
+          <option value="monthly" selected>Monthly</option>
+        </select>
+      </div>
+
+      <!-- Hidden Fields -->
+      <input type="hidden" name="id" value="{{ product.selected_or_first_available_variant.id }}" id="variant-id">
+      <input type="hidden" name="properties[Purchase Type]" value="one-time" id="purchase-type">
+
+      <!-- Quantity and Add to Cart -->
+      <div class="add-to-cart-section">
+        <div class="quantity-selector">
+          <label for="quantity">Quantity:</label>
+          <div class="quantity-controls">
+            <button type="button" class="quantity-btn" onclick="changeQuantity(-1)">-</button>
+            <input type="number" id="quantity" name="quantity" value="1" min="1" max="10">
+            <button type="button" class="quantity-btn" onclick="changeQuantity(1)">+</button>
+          </div>
+        </div>
+        
+        <button type="submit" 
+                class="add-to-cart-btn" 
+                {% unless product.available %}disabled{% endunless %}>
+          {% if product.available %}
+            Add to Cart - <span id="cartButtonPrice">{{ product.price | money }}</span>
+          {% else %}
+            Sold Out
+          {% endif %}
+        </button>
+      </div>
+    </form>
+
+    <!-- What's Included -->
+    <div class="whats-included">
+      <h3>What's Included</h3>
+      <ul id="includedItems">
+        {% if product.metafields.details.included_items %}
+          {% assign included_items = product.metafields.details.included_items | split: ',' %}
+          {% for item in included_items %}
+            <li>{{ item | strip }}</li>
+          {% endfor %}
+        {% else %}
+          <li>{{ product.metafields.details.pieces | default: 12 }} pieces of premium artisan chocolate</li>
+          <li>Elegant gift box packaging</li>
+          <li>Flavor profile guide</li>
+          <li>Free shipping on orders over $50</li>
+        {% endif %}
+      </ul>
+    </div>
+
+    <!-- Product Benefits -->
+    <div class="product-benefits">
+      <div class="benefit-item">
+        <span class="benefit-icon">🌱</span>
+        <span>Sustainably Sourced</span>
+      </div>
+      <div class="benefit-item">
+        <span class="benefit-icon">🚚</span>
+        <span>Free Shipping</span>
+      </div>
+      <div class="benefit-item">
+        <span class="benefit-icon">↩️</span>
+        <span>Easy Returns</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Enhanced JavaScript for Liquid Integration -->
+<script>
+  // Product data from Liquid
+  const productData = {
+    id: {{ product.id }},
+    title: {{ product.title | json }},
+    price: {{ product.price }},
+    compareAtPrice: {{ product.compare_at_price | default: 0 }},
+    variants: [
+      {% for variant in product.variants %}
+        {
+          id: {{ variant.id }},
+          title: {{ variant.title | json }},
+          price: {{ variant.price }},
+          available: {{ variant.available }},
+          inventory: {{ variant.inventory_quantity | default: 0 }}
+        }{% unless forloop.last %},{% endunless %}
+      {% endfor %}
+    ]
+  };
+
+  // Enhanced variant selection
+  function selectVariant(element) {
+    const variantId = element.dataset.variantId;
+    const variantPrice = element.dataset.price;
+    
+    // Update hidden variant input
+    document.getElementById('variant-id').value = variantId;
+    
+    // Update UI
+    document.querySelectorAll('.flavor-btn').forEach(btn => btn.classList.remove('active'));
+    element.classList.add('active');
+    
+    // Update pricing
+    updatePricing(variantPrice);
+  }
+
+  // Enhanced pricing updates
+  function updatePricing(price) {
+    const currentPrice = document.getElementById('currentPrice');
+    const cartButtonPrice = document.getElementById('cartButtonPrice');
+    const purchaseType = document.querySelector('input[name="purchaseType"]:checked').value;
+    
+    if (purchaseType === 'subscription') {
+      const subscriptionPrice = parseFloat(price.replace(/[^0-9.]/g, '')) * 0.8;
+      cartButtonPrice.textContent = `$${subscriptionPrice.toFixed(2)}`;
+    } else {
+      cartButtonPrice.textContent = price;
+    }
+  }
+
+  // Enhanced purchase option updates
+  function updatePurchaseOption() {
+    const purchaseType = document.querySelector('input[name="purchaseType"]:checked').value;
+    const subscriptionFrequency = document.getElementById('subscriptionFrequency');
+    const purchaseTypeInput = document.getElementById('purchase-type');
+    
+    // Update hidden field
+    purchaseTypeInput.value = purchaseType;
+    
+    // Show/hide subscription options
+    if (purchaseType === 'subscription') {
+      subscriptionFrequency.style.display = 'block';
+    } else {
+      subscriptionFrequency.style.display = 'none';
+    }
+    
+    // Update pricing
+    const activeVariant = document.querySelector('.flavor-btn.active');
+    if (activeVariant) {
+      updatePricing(activeVariant.dataset.price);
+    }
+  }
+
+  // Enhanced form submission
+  document.getElementById('product-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    // Add to cart via Ajax
+    fetch('/cart/add.js', {
+      method: 'POST',
+      body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+      // Show success message
+      showCartModal(data);
+      
+      // Update cart count
+      updateCartCount();
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('Error adding to cart. Please try again.');
+    });
+  });
+
+  // Show cart modal with Liquid data
+  function showCartModal(cartData) {
+    const modal = document.getElementById('cartModal');
+    const productName = document.getElementById('cartProductName');
+    const flavor = document.getElementById('cartFlavor');
+    const quantity = document.getElementById('cartQuantity');
+    const price = document.getElementById('cartPrice');
+    const type = document.getElementById('cartType');
+    
+    productName.textContent = cartData.product_title || productData.title;
+    flavor.textContent = cartData.variant_title || document.querySelector('.flavor-btn.active').textContent;
+    quantity.textContent = cartData.quantity;
+    price.textContent = Shopify.formatMoney(cartData.line_price || cartData.price);
+    type.textContent = document.querySelector('input[name="purchaseType"]:checked').value;
+    
+    modal.style.display = 'block';
+  }
+
+  // Update cart count
+  function updateCartCount() {
+    fetch('/cart.js')
+      .then(response => response.json())
+      .then(cart => {
+        document.querySelector('.cart-count').textContent = cart.item_count;
+      });
+  }
+
+  // Initialize on page load
+  document.addEventListener('DOMContentLoaded', function() {
+    updateCartCount();
+  });
+</script>
+
+{% comment %}
+  Additional Liquid snippets for enhanced functionality
+{% endcomment %}
+
+{% schema %}
+{
+  "name": "Product Page",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "enable_subscription",
+      "label": "Enable Subscription Option",
+      "default": true
+    },
+    {
+      "type": "number",
+      "id": "subscription_discount",
+      "label": "Subscription Discount (%)",
+      "default": 20,
+      "min": 0,
+      "max": 50
+    },
+    {
+      "type": "text",
+      "id": "included_items",
+      "label": "What's Included (comma separated)",
+      "default": "12 pieces of premium chocolate, Gift box, Flavor guide, Free shipping"
+    }
+  ]
+}
+{% endschema %}
