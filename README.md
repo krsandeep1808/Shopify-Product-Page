@@ -84,8 +84,7 @@ shopify-product-page/
 ├── styles.css              # All CSS styles (Shared)
 ├── script.js               # JavaScript functionality (Static)
 ├── product-liquid.liquid   # Shopify Liquid template (Production)
-├── README.md               # Project documentation
-└── LIQUID_VS_STATIC.md     # Comparison guide between versions
+└── README.md               # Project documentation
 ```
 
 ## 📋 File Descriptions
@@ -125,10 +124,6 @@ shopify-product-page/
 - **Contents**: Features, setup, customization, technical details
 - **Audience**: Developers, clients, stakeholders
 
-#### `LIQUID_VS_STATIC.md` - Comparison Guide
-- **Purpose**: Detailed comparison between static and Liquid versions
-- **Contents**: Feature comparison, pros/cons, usage recommendations
-- **Helps With**: Choosing the right version for your needs
 
 ## 🚀 How to Run
 
