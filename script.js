@@ -1,5 +1,3 @@
-// JavaScript for the Shopify product page
-
 // Change main image when thumbnails are clicked
 function changeMainImage(element) {
     const mainImage = document.getElementById('mainImage');
